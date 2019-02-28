@@ -1,9 +1,6 @@
 ---
 title: "Bivariate Exercises"
 author: "Ana Chkheidze"
-output:
-  html_document:
-    df_print: paged
 ---
 
 ```{r load_link, eval=TRUE}
@@ -13,34 +10,49 @@ load(file = url(link))
 
 ```{r callggplot, eval=TRUE}
 library(ggplot2)
+library(magrittr)
+library(tibble)
+library(ggrepel)
 ```
 
 -------Exercise 1-------
+Turn the bars into lollipop with the right components
 
-```{r}
-
-```
-
-
-
-
-
-
-
---------Exercise 2-------
-
-```{r heatmap, eval=TRUE}
+```{r lolli_prep, eval=TRUE}
 CrimeCol=table(crime$crimecat,crime$Occurred.DayTime)%>%
          prop.table(margin = 2)%>%   # 2 is % by column
          "*"(100)%>%
          round(3)
 df.C=as.data.frame(CrimeCol)
 colnames(df.C)=c('Crime','Daytime','Percent')
+df.C
+```
+
+```{r Turnbartololli, eval=TRUE}
+
+basel =ggplot(df.C, aes(x =reorder(Crime, Percent),y= Percent)) 
+lollibar1=basel+ geom_segment(aes(y = 0, 
+                                   x = reorder(Crime,Percent), 
+                                   yend = Percent, 
+                                   xend = Crime), color = "gray") 
+lollibar2=lollibar1+geom_point()+
+                    coord_flip()+
+                    facet_wrap( ~ Daytime ,nrow = 1)
+lollibar3= lollibar2+theme_minimal()+
+                     labs(title='Percent of Crime Types Occured by the Time of the Day', 
+                          x='Crime Type',                           
+                          y='Percent',
+                          caption='Source:Seattle Police Department')
+lollibar4=lollibar3+theme(plot.caption = element_text(hjust = 0),
+                    plot.title = element_text(hjust = 0.5))
+lollibar4
 ```
 
 
+--------Exercise 2-------
 Change the heatplot to ascending order, where intensity goes from yellow to purple.
-```{r head_ascending, eval=TRUE}
+
+```{r heat_ascending, eval=TRUE}
 base  = ggplot(df.C, aes(x = Daytime, y = reorder(Crime, -Percent), fill = Percent)) 
 heat1 = base +  geom_tile()
 heat2 = heat1 +scale_fill_gradient(low = "yellow", 
@@ -48,20 +60,208 @@ heat2 = heat1 +scale_fill_gradient(low = "yellow",
 
 heat3 = heat2 + theme_classic() 
 
-heat4 = heat3 + theme(axis.text.x = element_text(angle = 90, vjust = 0.6), 
-                      legend.title = element_blank(), #no title for legend
+heat4 = heat3 + theme(legend.title = element_blank(), 
                       legend.position="top", 
                       legend.direction="horizontal",
                       legend.key.width=unit(1, "cm"),
-                      legend.key.height=unit(1, "cm")) 
+                      legend.key.height=unit(1, "cm"),
+                      plot.caption = element_text(hjust = 0),
+                      plot.title = element_text(hjust = 0.5))
 
-heat4 + labs(y="Crime")
+heat5= heat4 + labs(x='Time of the Day',y='Crime Type',title='Crime Heatmap', caption='Source:Seattle Police Department')
+
+heat5
 ```
+
+
 
 -------Exercise 3-------------
 
-```{r}
+Complete the elements missing in the previous plots
 
+-------PLOT 1 ----------------
+```{r yearcrime, eval=TRUE}
+crimeY2000=crime[(crime$DaysToReport>=365) & (crime$year>=2000),]
+crimeY2000$YearsToReport=crimeY2000$DaysToReport/365
+crimeYearGG=crimeY2000[complete.cases(crimeY2000$YearsToReport),]
+base = ggplot(crimeYearGG,aes(x=factor(year), y=YearsToReport))
+mins = base + stat_summary(fun.y=min, # function for 'y' is min()
+                           geom="line",
+                           show.legend = T,size=1,
+                           aes(group=1,col='Min'))
+
+minsMaxs= mins + stat_summary(fun.y=max,
+                              geom="line",
+                              linetype='dashed',
+                              size=1,show.legend = F,
+                              aes(group=1,col='Max'))
+minsMaxsMd= minsMaxs + stat_summary(fun.y=median,
+                                    geom="line",size=1,
+                                    aes(group=1,col='Median'))
+all1=minsMaxsMd + scale_colour_manual(name="Trends",
+                                      values=c("blue", "black","red")
+                                      )
+all2= all1+theme_minimal()+
+           labs(title='Crimes Are Being Reported Sooner', 
+                x='Year', 
+                y='Years to Report',        
+                caption='Source:Seattle Police Department')+
+           theme(plot.caption = element_text(hjust = 0),
+                 plot.title = element_text(hjust = 0.5))
+all2
 ```
 
 
+
+-------PLOT 2-------------
+```{r weekcrime, eval=TRUE}
+crimeWeek=crime[(crime$DaysToReport<365) & (crime$year>=2000),]
+crimeWeek$WeeksToReport=crimeWeek$DaysToReport/7
+crimeYearGG2=crimeWeek[complete.cases(crimeWeek$WeeksToReport) &complete.cases(crimeWeek$crimecat),]
+
+base = ggplot(crimeYearGG2,aes(x=factor(year), y=WeeksToReport)) 
+mins = base + stat_summary(fun.y=min,size=0.8,
+                           geom="line", linetype='dashed',show.legend = T,
+                           aes(group=1,col='Min'))
+minsMaxs= mins + stat_summary(fun.y=max,
+                              geom="line",size=0.8,show.legend = F,
+                              aes(group=1,col='Max'))
+minsMaxsMd= minsMaxs + stat_summary(fun.y=median,
+                                    geom="line",size=0.8,
+                                    aes(group=1,col='Median'))
+all2=minsMaxsMd + scale_colour_manual(name="Trends",
+                                      values=c("blue", "black","red")
+                                      )
+all3=all2+theme_minimal()+
+          labs(title='Trends for All Crimes that Took <1 To Report', 
+               x='Year', 
+               y='Weeks to Report',
+               caption='Source:Seattle Police Department')+
+           theme(plot.caption = element_text(hjust = 0),
+                 plot.title = element_text(hjust = 0.5))
+
+all3
+```
+
+
+
+
+-------PLOT 3-----------------
+
+```{r yearcat, eval=TRUE}
+crimeY2000=crime[(crime$DaysToReport>=365) & (crime$year>=2000),]
+
+base= ggplot(crimeYearGG,
+             aes(x = reorder(crimecat, YearsToReport, FUN = max), 
+                 y=YearsToReport)) 
+mins = base + stat_summary(fun.y=min,size=1,
+                           geom="line", linetype='dashed',show.legend = T,
+                           aes(group=1,col='Min'))
+minsMaxs= mins + stat_summary(fun.y=max,
+                              geom="line",size=1,show.legend = F,
+                              aes(group=1,col='Max'))
+minsMaxsMd= minsMaxs + stat_summary(fun.y=median, size=1,
+                                    geom="line",
+                                    aes(group=1,col='Median'))
+all3=minsMaxsMd + scale_colour_manual(name="Trends",
+                                      values=c("blue", "black","red"))+
+                                      coord_flip()
+all4=all3 + theme_minimal()+
+            labs(title='Trends for Types of Crime that Took >1 Year To Report', 
+                 x='Crime Type', 
+                 y='Years to Report',
+                 caption='Source:Seattle Police Department')+
+            theme(plot.caption = element_text(hjust = 0),
+                 plot.title = element_text(hjust = 0.5))
+all4
+```
+
+
+
+-----------PLOT 4----------------
+
+```{r weekcat,Eval=TRUE}
+base = ggplot(crimeYearGG2,
+              aes(x = reorder(crimecat, WeeksToReport, FUN = max),
+                  y=WeeksToReport)) 
+mins = base + stat_summary(fun.y=min,size=1,
+                           geom="line", linetype='dashed',show.legend = T,
+                           aes(group=1,col='Min'))
+minsMaxs= mins + stat_summary(fun.y=max,
+                              geom="line",size=1,show.legend = F,
+                              aes(group=1,col='Max'))
+minsMaxsMd= minsMaxs + stat_summary(fun.y=median,size=1,
+                                    geom="line",
+                                    aes(group=2,col='Median'))
+all3=minsMaxsMd + scale_colour_manual(name="Trends",
+                                      values=c("blue", "black","red"))
+all4=all3+coord_flip()+
+          theme_minimal()+
+          labs(title='Trends for Types of Crime that Took <1 Year To Report', 
+                 x='Crime Type', 
+                 y='Weeks to Report',
+                 caption='Source:Seattle Police Department')+
+           theme(plot.caption = element_text(hjust = 0),
+                 plot.title = element_text(hjust = 0.5))
+all4
+```
+
+
+
+-----------Exercise 4---------
+Complete the elements missing in the previous plots.
+
+```{r scatterprep, eval=TRUE}
+daysByNeigh=tapply(crime$DaysToReport, crime$Neighborhood, mean,na.rm=T)
+
+crimesByNeigh=tapply(crime$crimecat, crime$Neighborhood, length)%>%      
+                     prop.table()%>%
+                     "*"(100)%>% 
+                     round(2)
+
+daysByNeigh=as.data.frame(daysByNeigh)%>%rownames_to_column()
+crimesByNeigh=as.data.frame(crimesByNeigh)%>%rownames_to_column()
+num_num=merge(daysByNeigh,crimesByNeigh)
+num_num
+```
+
+-----------Plot 1--------------
+
+```{r scatter, eval=TRUE}
+base = ggplot(num_num, aes(daysByNeigh,crimesByNeigh,label=rowname)) 
+plot1= base +  geom_point() 
+plot2=  plot1 + geom_text_repel(aes(label=ifelse(crimesByNeigh>=5,
+                                           num_num$rowname, "")))
+
+plot3= plot2 + labs(title='High Crime Neighborhoods Report More Often', 
+                 x='Days to Report', 
+                 y='Number of Crimes',
+                 caption='Source:Seattle Police Department')+
+                theme(plot.caption = element_text(hjust = 0),
+                 plot.title = element_text(hjust = 0.5))
+plot3
+```
+
+
+---------Plot 2------------
+
+```{r scattermap, eval=TRUE}
+base = ggplot(num_num, aes(daysByNeigh,crimesByNeigh)) 
+scatp1 = base +  stat_density_2d(aes(fill = ..density..), 
+                                 geom = "raster", contour = FALSE)
+scatp2=scatp1+geom_text_repel(aes(label=ifelse(crimesByNeigh>=5,
+                                               num_num$rowname, "")))
+scatp3 = scatp2 +  theme(legend.position='none') 
+scatp4= scatp3 + scale_fill_distiller(palette="Greys", direction=1) 
+scatp5 = scatp4 +  scale_x_continuous(expand = c(0, 0)) + 
+         scale_y_continuous(expand = c(0, 0)) 
+scatp6= scatp5+ labs(title='What is the Overall Picture Across Neighborhoods?', 
+                 x='Days to Report', 
+                 y='Number of Crimes',
+                 caption='Source:Seattle Police Department')+
+                theme(plot.caption = element_text(hjust = 0),
+                 plot.title = element_text(hjust = 0.5))
+scatp6
+```
+
+--------The End--------
